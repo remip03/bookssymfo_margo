@@ -43,9 +43,12 @@ security:
     access_control:
         - { path: ^/api/login, roles: PUBLIC_ACCESS }
         - { path: ^/api/doc, roles: PUBLIC_ACCESS }
-        - { path: ^/api/books, roles: PUBLIC_ACCESS }
-        - { path: ^/api/author, roles: PUBLIC_ACCESS }
 
+        # accès publique aux livres et auteurs
+        # - { path: ^/api/books, roles: PUBLIC_ACCESS }
+        # - { path: ^/api/author, roles: PUBLIC_ACCESS }
+
+        # pour la connexion et le rôle utilisateur
         # - { path: ^/api, roles: IS_AUTHENTICATED_FULLY }
 
 when@test:

@@ -60,7 +60,7 @@ class BookController extends AbstractController
     public function getAllBooks(BookRepository $bookRepository, SerializerInterface $serializer, Request $request, TagAwareCacheInterface $cache): JsonResponse
     {
         $page = $request->get('page', 1);
-        $limit = $request->get('limit', 10);
+        $limit = $request->get('limit', 25);
 
         $idCache = "getAllBooks-" .$page . "-" .$limit;
 
@@ -170,7 +170,8 @@ class BookController extends AbstractController
     * @return JsonResponse
     */
 
-    #[Route('/api/books', name:'createBook', methods: ['POST'])]
+    #[Route('/api/books
+    ', name:'createBook', methods: ['POST'])]
     // #[IsGranted('ROLE_ADMIN', message:'Vous n\'avez pas les droits suffisants pour créer un livre')]
         public function createBook(Request $request, SerializerInterface $serializer, EntityManagerInterface $em, UrlGeneratorInterface $urlGenerator, AuthorRepository $authorRepository, ValidatorInterface $validator): JsonResponse
     {
@@ -179,12 +180,12 @@ class BookController extends AbstractController
         if ($errors->count() > 0) {
             return new JsonResponse($serializer->serialize($errors, 'json'), Response::HTTP_BAD_REQUEST, [], true);
         }
+
+        $content = $request->toArray(); // On récupère le contenu de la requête sous forme de tableau
+        $idAuthor = $content['idAuthor'] ?? -1; // Si idAuthor n'est pas présent dans le tableau $content, on lui attribue la valeur -1
+        $book->setAuthor($authorRepository->find($idAuthor)); // On attribue l'auteur au livre
         $em->persist($book);
         $em->flush();
-        $content = $request->toArray(); // On récupère le contenu de la requête sous forme de tableau
-        $idAuthor = intval($content['idAuthor']) ?? -1; // Si idAuthor n'est pas présent dans le tableau $content, on lui attribue la valeur -1
-        $book->setAuthor($authorRepository->find($idAuthor)); // On attribue l'auteur au livre
-        
 
         // $jsonBook = $serializer->serialize($book,'json', ['groups'=> 'getBooks']);
         $context = SerializationContext::create()->setGroups(['getBooks']);

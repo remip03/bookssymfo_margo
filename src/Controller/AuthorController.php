@@ -4,6 +4,7 @@ namespace App\Controller;
 
 use App\Entity\Author;
 use App\Repository\AuthorRepository;
+use App\Repository\BookRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use JMS\Serializer\SerializationContext;
 use Symfony\Contracts\Cache\ItemInterface;
@@ -56,12 +57,12 @@ class AuthorController extends AbstractController
     * @return JsonResponse
     */
     #[Route('/api/author', name: 'author', methods: ['GET'])]
-        public function getAllAuthor(AuthorRepository $authorRepository, SerializerInterface $serializer, Request $request, TagAwareCacheInterface $cache): JsonResponse
+        public function getAllAuthors(AuthorRepository $authorRepository, SerializerInterface $serializer, Request $request, TagAwareCacheInterface $cache): JsonResponse
     {
         $page = $request->get('page', 1);
-        $limit = $request->get('limit',10);
+        $limit = $request->get('limit', 20);
 
-        $idCache = "GetAllAuthors-" . $page . "-" . $limit;
+        $idCache = "getAllAuthors-" .$page . "-" .$limit;
 
         $jsonAuthorList = $cache->get($idCache, function (ItemInterface $item) use ($authorRepository, $page, $limit, $serializer){
             $item->tag("authorsCache");
@@ -96,6 +97,7 @@ class AuthorController extends AbstractController
     public function getDetailBook(SerializerInterface $serializer, Author $author): JsonResponse
     {
         $context = SerializationContext::create()->setGroups(['getAuthors']);
+        $context->setVersion("1.0");
         $jsonAuthor = $serializer->serialize($author ,'json', $context);
         return new JsonResponse($jsonAuthor, Response::HTTP_OK,[], true);
     }
@@ -119,13 +121,21 @@ class AuthorController extends AbstractController
     */
     #[Route ('/api/author/{id}', name: 'deleteAuthor', methods: ['DELETE'])]
     // #[IsGranted('ROLE_ADMIN', message: 'Vous n\'avez pas les droits suffisants pour supprimer un auteur')]
-        public function deleteAuthor(Author $author, EntityManagerInterface $em, TagAwareCacheInterface $cachePool): JsonResponse
+    public function deleteAuthor(Author $author, EntityManagerInterface $em, BookRepository $bookRepository, TagAwareCacheInterface $cachePool): JsonResponse
     {
-        $cachePool->invalidateTags(["authorCache"]);
+        $cachePool->invalidateTags(["authorsCache"]);
+        // Récupération de tous les livres de l'auteur spécifié.
+        $books = $bookRepository->findBy(['author' => $author]);
+        // Suppression de chaque livre de l'auteur.
+        foreach ($books as $book) {
+            $em->remove($book);
+        }
+        // Suppression de l'auteur de la base de données.
         $em->remove($author);
+        // Application des changements dans la base de données.
         $em->flush();
-
-    return new JsonResponse(null, Response::HTTP_NO_CONTENT);
+        // Retour d'une réponse JSON indiquant que l'auteur a été supprimé.
+        return new JsonResponse(null, Response::HTTP_NO_CONTENT);
     }
     /**
     * Cette méthode permet de créer un auteur.
@@ -169,7 +179,7 @@ class AuthorController extends AbstractController
     }
     $em->persist($author);
     $em->flush();
-    $content = $request->toArray();
+    // $content = $request->toArray();
 
     $context = SerializationContext::create()->setGroups(['getBooks']);
     $jsonAuthor = $serializer->serialize($author, 'json', $context);
@@ -220,17 +230,17 @@ class AuthorController extends AbstractController
     $currentAuthor->setFirstName($newAuthor->getFirstName());
     $currentAuthor->setLastName($newAuthor->getLastName());
     $errors = $validator->validate($currentAuthor);
-        if ($errors ->count() > 0) {
+        if (count($errors) > 0) {
             return new JsonResponse($serializer->serialize($errors, 'json'), Response::HTTP_BAD_REQUEST, [], true);
         }
 
-        // $content = $request->toArray();
+    // $content = $request->toArray();
         // $idAuthor = $content['idAuthor'] ?? -1;
     // $currentAuthor->setAuthor($authorRepository->find($idAuthor));
     // $updatedAuthor = $serializer->deserialize($request->getContent(), Author::class, 'json', [AbstractNormalizer::OBJECT_TO_POPULATE => $currentAuthor]);
     $em->persist($currentAuthor);
     $em->flush();
-    $cache->invalidateTags(["authorCache"]);
+    $cache->invalidateTags(["authorsCache"]);
     return new JsonResponse(null, JsonResponse::HTTP_NO_CONTENT);
     }
 }
